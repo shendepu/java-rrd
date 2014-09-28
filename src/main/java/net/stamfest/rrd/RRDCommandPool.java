@@ -43,16 +43,16 @@ class RRDPoolMemberWrapper implements RRDCommand {
     RRDPoolMember member;
 
     public RRDPoolMemberWrapper(RRDPoolMember member) {
-	this.member = member;
+	    this.member = member;
     }
 
     public void finish() {
-	member.rrdp.finish();
-	member.rrdp = null;
+        member.rrdp.finish();
+        member.rrdp = null;
     }
 
     public CommandResult command(String[] cmd) throws Exception {
-	return member.rrdp.command(cmd);
+	    return member.rrdp.command(cmd);
     }
 };
 
@@ -67,125 +67,125 @@ public class RRDCommandPool implements RRDCommand {
     RRDPoolMember pool[] = null;
     
     public RRDCommandPool(String basedir, String cachedAddress) {
-	init(4, basedir, cachedAddress);
+	    init(4, basedir, cachedAddress);
     }
     
     public RRDCommandPool(int poolsize, String basedir, String cachedAddress) {
-	init(poolsize, basedir, cachedAddress);
+	    init(poolsize, basedir, cachedAddress);
     }
     
     public RRDCommandPool(int poolsize, RRDCommandFactory factory) {
-	init(poolsize, factory);
+	    init(poolsize, factory);
     }
     
     private void init(int poolsize, 
                       final String basedir,
                       final String cachedAddress) {
-	init(poolsize, new RRDCommandFactory() {
-	    public RRDp createRRDCommand() throws Exception {
-	        return new RRDp(basedir, cachedAddress);
-	    }
-	});
+        init(poolsize, new RRDCommandFactory() {
+            public RRDp createRRDCommand() throws Exception {
+                return new RRDp(basedir, cachedAddress);
+            }
+        });
     }
 
     /**
      * @param poolsize
      */
     private void init(int poolsize, RRDCommandFactory factory) {
-	this.poolsize = poolsize;
-	this.factory = factory;
-	
-	pool = new RRDPoolMember[poolsize];
+        this.poolsize = poolsize;
+        this.factory = factory;
+
+        pool = new RRDPoolMember[poolsize];
     }
 
     
     public RRDCommand getConnection() throws Exception {
-	if (finished) throw new Exception("Already finished");
-	RRDPoolMember member = null;
+        if (finished) throw new Exception("Already finished");
+        RRDPoolMember member = null;
 
-	synchronized(this) {
-	    while (true) {
-		for (int i = 0 ; i < poolsize ; i++) {
-		    if (pool[i] == null) {
-			pool[i] = new RRDPoolMember();
-			member = pool[i];
-			break;
-		    } else if (! pool[i].inuse) {
-			member = pool[i];
-			break;
-		    }
-		}
-		if (member != null) {
-		    member.inuse = true;
-		    break;
-		} else {
-		    try {
-			wait();
-		    } catch (InterruptedException e) {
-			// 		ignore
-		    }
-		    // next loop iteration 
-		}
-	    }
-	}
-	
-	member.requestcount++;
-	if (member.rrdp == null) {
-	    member.requestcount = 0;
-	    member.rrdp = factory.createRRDCommand();
-	}
-	
-	return new RRDPoolMemberWrapper(member);
+        synchronized(this) {
+            while (true) {
+                for (int i = 0 ; i < poolsize ; i++) {
+                    if (pool[i] == null) {
+                        pool[i] = new RRDPoolMember();
+                        member = pool[i];
+                        break;
+                    } else if (! pool[i].inuse) {
+                        member = pool[i];
+                        break;
+                    }
+                }
+                if (member != null) {
+                    member.inuse = true;
+                    break;
+                } else {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                    // 		ignore
+                    }
+                    // next loop iteration
+                }
+            }
+        }
+
+        member.requestcount++;
+        if (member.rrdp == null) {
+            member.requestcount = 0;
+            member.rrdp = factory.createRRDCommand();
+        }
+
+        return new RRDPoolMemberWrapper(member);
     }
     
     public void done(RRDCommand cmd) {
-	if (cmd instanceof RRDPoolMemberWrapper) {
-	    RRDPoolMember member = ((RRDPoolMemberWrapper) cmd).member;
-	    
-	    if (member.requestcount > maxRequestsPerMember) {
-		if (member.rrdp != null) {
-		    // this may happen in case of a previous error
-		    member.rrdp.finish();
-		}
-		member.requestcount = 0;
-		member.rrdp = null;
-	    }
-	    
-	    synchronized (this) {
-		member.inuse = false;
-		notify();
-	    }
-	}
+        if (cmd instanceof RRDPoolMemberWrapper) {
+            RRDPoolMember member = ((RRDPoolMemberWrapper) cmd).member;
+
+            if (member.requestcount > maxRequestsPerMember) {
+                if (member.rrdp != null) {
+                    // this may happen in case of a previous error
+                    member.rrdp.finish();
+                }
+                member.requestcount = 0;
+                member.rrdp = null;
+            }
+
+            synchronized (this) {
+                member.inuse = false;
+                notify();
+            }
+        }
     }
     
     private void kick(RRDCommand cmd) {
-	if (cmd instanceof RRDPoolMemberWrapper) {
-	    RRDPoolMember member = ((RRDPoolMemberWrapper) cmd).member;
-	    
-	    if (member.rrdp != null) {
-		// this may happen in case of a previous error
-		member.rrdp.finish();
-	    }
-	    member.requestcount = 0;
-	    member.rrdp = null;
-	    
-	    synchronized (this) {
-		member.inuse = false;
-		notify();
-	    }
-	}
+        if (cmd instanceof RRDPoolMemberWrapper) {
+            RRDPoolMember member = ((RRDPoolMemberWrapper) cmd).member;
+
+            if (member.rrdp != null) {
+            // this may happen in case of a previous error
+            member.rrdp.finish();
+            }
+            member.requestcount = 0;
+            member.rrdp = null;
+
+            synchronized (this) {
+            member.inuse = false;
+            notify();
+            }
+        }
     }
 
     public CommandResult command(String[] cmd) throws Exception {
-	RRDCommand rrdcmd = getConnection();
-	try {
-	    return rrdcmd.command(cmd);
-	} catch (Exception e) {
-	    kick(rrdcmd);
-	    throw e;
-	} finally {
-	    done(rrdcmd);
-	}
+        RRDCommand rrdcmd = getConnection();
+        try {
+            return rrdcmd.command(cmd);
+        } catch (Exception e) {
+            kick(rrdcmd);
+            throw e;
+        } finally {
+            done(rrdcmd);
+        }
     }
 
     public int getMaxRequestsPerMember() {
@@ -201,34 +201,34 @@ public class RRDCommandPool implements RRDCommand {
     }
 
     public void finish() {
-	finished = true;
-	synchronized (this) {
-	    boolean alldone = false;
-	    
-	    while (!alldone) {
-		alldone = true;
-		for (int i = 0 ; i < poolsize ; i++) {
-		    if (pool[i] == null) continue;
-		    if (! pool[i].inuse) {
-			if (pool[i].rrdp != null) {
-			    pool[i].rrdp.finish();
-			    pool[i].rrdp = null;
-			    pool[i] = null;
-			}
-			continue;
-		    } else {
-			alldone = false;
-			// in use - have to wait
-			try {
-			    wait();
-			} catch (InterruptedException e) {
-			    // 	ignore
-			}
-			break;
-		    }
-		}
-	    }
-	}
+        finished = true;
+        synchronized (this) {
+            boolean alldone = false;
+
+            while (!alldone) {
+            alldone = true;
+            for (int i = 0 ; i < poolsize ; i++) {
+                if (pool[i] == null) continue;
+                if (! pool[i].inuse) {
+                if (pool[i].rrdp != null) {
+                    pool[i].rrdp.finish();
+                    pool[i].rrdp = null;
+                    pool[i] = null;
+                }
+                continue;
+                } else {
+                alldone = false;
+                // in use - have to wait
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    // 	ignore
+                }
+                break;
+                }
+            }
+            }
+        }
     }
 
     public RRDCommandFactory getFactory() {
