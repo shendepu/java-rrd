@@ -50,23 +50,23 @@ public class Test2 {
 	
 	for (int t = 0 ; t < threads ; t++) {
 	    Thread th = new Thread() {
-		public void run() {
-		    System.err.println(System.currentTimeMillis());
-		    for (int i = 0 ; i < perthread ; i++) {
-			try {
-			    rrd.graphv(argv);
-			} catch (Exception e) {
-			    // TODO Auto-generated catch block
-			    e.printStackTrace();
-			}
-			
-			//for (String k : r.info.keySet()) {
-			// System.out.printf("%s=%s\n", k, r.info.get(k));
-			//}
-			System.out.println(i);
-		    }
-		    System.err.println(System.currentTimeMillis());
-		};
+            public void run() {
+                System.err.println(System.currentTimeMillis());
+                for (int i = 0 ; i < perthread ; i++) {
+                    try {
+                        rrd.graphv(argv);
+                    } catch (Exception e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+
+                    //for (String k : r.info.keySet()) {
+                    // System.out.printf("%s=%s\n", k, r.info.get(k));
+                    //}
+                    System.out.println(i);
+                }
+                System.err.println(System.currentTimeMillis());
+            };
 	    };
 	    th.start();
 	}
