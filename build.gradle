@@ -1,0 +1,17 @@
+apply plugin: 'java'
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:unchecked"
+}
+
+sourceCompatibility = '1.6'
+archivesBaseName = 'java-rrd'
+
+version = '1.1.0'
+
+
+jar {
+    enabled = true
+    manifest { attributes 'Implementation-Title': 'Java RRD', 'Implementation-Version': version }
+
+}
